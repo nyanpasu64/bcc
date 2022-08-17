@@ -102,11 +102,11 @@ def print_event(cpu, data, size):
         print("%-18.9f %-12.12s %-6d %-3d %s" %
               (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu, function))
     else:
-        print("%-18.9f %s" % (ts, function))
+        print("%-18.9f\n%s" % (ts, function))
 
     for addr in stack_traces.walk(event.stack_id):
         sym = b.ksym(addr, show_offset=offset).decode('utf-8', 'replace')
-        print("\t%s" % sym)
+        print(sym)
 
     print()
 
