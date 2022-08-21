@@ -32,10 +32,10 @@ parser.add_argument("-s", "--offset", action="store_true",
     help="show address offsets")
 parser.add_argument("-v", "--verbose", action="store_true",
     help="print more fields")
-parser.add_argument("function",
+parser.add_argument("function", nargs='+',
     help="kernel function name")
 args = parser.parse_args()
-function = args.function
+functions = args.function
 offset = args.offset
 verbose = args.verbose
 debug = 0
@@ -74,14 +74,17 @@ if debug:
 
 # initialize BPF
 b = BPF(text=bpf_text)
-b.attach_kprobe(event=function, fn_name="trace_stack")
+prev_open_kprobes = 0
+for function in functions:
+    b.attach_kprobe(event=function, fn_name="trace_stack")
 
-TASK_COMM_LEN = 16  # linux/sched.h
+    #TASK_COMM_LEN = 16  # linux/sched.h
 
-matched = b.num_open_kprobes()
-if matched == 0:
-    print("Function \"%s\" not found. Exiting." % function)
-    exit()
+    num_open_kprobes = b.num_open_kprobes()
+    if num_open_kprobes == prev_open_kprobes:
+        print("Function \"%s\" not found. Exiting." % function)
+        exit()
+    prev_open_kprobes = num_open_kprobes
 
 stack_traces = b.get_table("stack_traces")
 start_ts = time.time()
@@ -107,10 +110,10 @@ def print_event(cpu, data, size):
     ts = time.time() - start_ts
 
     if verbose:
-        print("%-18.9f %-12.12s %-6d %-3d %s" %
-              (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu, function))
+        print("%-18.9f %-12.12s %-6d %-3d" %
+              (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu))
     else:
-        print("%-18.9f\n%s:" % (ts, function))
+        print("%-18.9f:" % (ts,))
 
     for addr in reversed(addrs):
         sym = b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
