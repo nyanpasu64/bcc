@@ -96,17 +96,25 @@ else:
 def print_event(cpu, data, size):
     event = b["events"].event(data)
 
+    addrs = list(stack_traces.walk(event.stack_id))
+    syms = set()
+    for addr in addrs:
+        syms.add(b.ksym(addr, show_offset=offset).decode('utf-8', 'replace'))
+
+    if syms & {"drm_atomic_helper_page_flip", "drm_mode_cursor_ioctl", "drm_mode_cursor_common"}:
+        return;
+
     ts = time.time() - start_ts
 
     if verbose:
         print("%-18.9f %-12.12s %-6d %-3d %s" %
               (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu, function))
     else:
-        print("%-18.9f\n%s" % (ts, function))
+        print("%-18.9f\n%s:" % (ts, function))
 
-    for addr in stack_traces.walk(event.stack_id):
-        sym = b.ksym(addr, show_offset=offset).decode('utf-8', 'replace')
-        print(sym)
+    for addr in reversed(addrs):
+        sym = b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
+        print("\t" + sym)
 
     print()
 
