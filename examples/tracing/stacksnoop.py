@@ -96,15 +96,19 @@ if verbose:
 else:
     print("%-18s %s" % ("TIME(s)", "FUNCTION"))
 
+prev_syms = []
 def print_event(cpu, data, size):
+    global prev_syms
+
     event = b["events"].event(data)
 
-    addrs = list(stack_traces.walk(event.stack_id))
-    syms = set()
-    for addr in addrs:
-        syms.add(b.ksym(addr, show_offset=offset).decode('utf-8', 'replace'))
+    syms = [
+        b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
+        for addr in reversed(list(stack_traces.walk(event.stack_id)))
+    ]
+    sym_set = set(syms)
 
-    if syms & {"drm_atomic_helper_page_flip", "drm_mode_cursor_ioctl", "drm_mode_cursor_common"}:
+    if sym_set & {"drm_atomic_helper_page_flip", "drm_mode_cursor_ioctl", "drm_mode_cursor_common"}:
         return;
 
     ts = time.time() - start_ts
@@ -115,11 +119,22 @@ def print_event(cpu, data, size):
     else:
         print("%-18.9f:" % (ts,))
 
-    for addr in reversed(addrs):
-        sym = b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
+    begin_print = 0
+    for ((i, sym), prev_sym) in zip(enumerate(syms), prev_syms):
+        if sym != prev_sym:
+            begin_print = i - 1
+            break
+    else:
+        begin_print = min(len(syms), len(prev_syms)) - 1
+    begin_print = max(0, begin_print)
+
+    if begin_print:
+        print(f"\t...{begin_print} frames skipped")
+    for sym in syms[begin_print:]:
         print("\t" + sym)
 
     print()
+    prev_syms = syms
 
 b["events"].open_perf_buffer(print_event)
 while 1:
