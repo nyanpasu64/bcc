@@ -128,8 +128,12 @@ def print_event(cpu, data, size):
     begin_print = max(0, last_match)
 
     for i, sym in enumerate(syms[begin_print:], begin_print):
-        indent = " " * i
-        print(f"{indent}{i}: {sym}")
+        if i == last_match:
+            indent = " " * max(i-1, 0)
+            print(f"{indent}({i}) {sym}")
+        else:
+            indent = " " * i
+            print(f"{indent}{i}: {sym}")
 
     print()
     prev_syms = syms
