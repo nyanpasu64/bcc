@@ -133,7 +133,7 @@ def print_event(cpu, data, size):
                 indent = " " * (i-1) + "("
             else:
                 indent = ""
-            print(f"{indent}{i}) {sym}")
+            print(f"\x1B[3m{indent}{i}) {sym}\x1B[0m")
         else:
             indent = " " * i
             print(f"{indent}{i}: {sym}")
