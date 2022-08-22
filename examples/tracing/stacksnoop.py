@@ -119,17 +119,17 @@ def print_event(cpu, data, size):
     else:
         print("%.9f:" % (ts,))
 
-    begin_print = 0
     for ((i, sym), prev_sym) in zip(enumerate(syms), prev_syms):
         if sym != prev_sym:
-            begin_print = i - 1
+            last_match = i - 1
             break
     else:
-        begin_print = min(len(syms), len(prev_syms)) - 1
-    begin_print = max(0, begin_print)
+        last_match = min(len(syms), len(prev_syms)) - 1
+    begin_print = max(0, last_match)
 
     for i, sym in enumerate(syms[begin_print:], begin_print):
-        print(f"\t{i}: {sym}")
+        indent = " " * i
+        print(f"{indent}{i}: {sym}")
 
     print()
     prev_syms = syms
