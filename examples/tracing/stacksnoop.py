@@ -114,10 +114,10 @@ def print_event(cpu, data, size):
     ts = time.time() - start_ts
 
     if verbose:
-        print("%-18.9f %-12.12s %-6d %-3d" %
+        print("%.9f %-12.12s %-6d %-3d" %
               (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu))
     else:
-        print("%-18.9f:" % (ts,))
+        print("%.9f:" % (ts,))
 
     begin_print = 0
     for ((i, sym), prev_sym) in zip(enumerate(syms), prev_syms):
@@ -128,10 +128,8 @@ def print_event(cpu, data, size):
         begin_print = min(len(syms), len(prev_syms)) - 1
     begin_print = max(0, begin_print)
 
-    if begin_print:
-        print(f"\t...{begin_print} frames skipped")
-    for sym in syms[begin_print:]:
-        print("\t" + sym)
+    for i, sym in enumerate(syms[begin_print:], begin_print):
+        print(f"\t{i}: {sym}")
 
     print()
     prev_syms = syms
