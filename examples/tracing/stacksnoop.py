@@ -106,7 +106,7 @@ def print_event(cpu, data, size):
         b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
         for addr in reversed(list(stack_traces.walk(event.stack_id)))
     ]
-    sym_set = set(syms)
+    sym_set = {sym.split()[0] for sym in syms}
 
     if sym_set & {"drm_atomic_helper_page_flip", "drm_mode_cursor_ioctl", "drm_mode_cursor_common"}:
         return;
