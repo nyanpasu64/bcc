@@ -102,14 +102,19 @@ def print_event(cpu, data, size):
 
     event = b["events"].event(data)
 
+    try:
+        stack = stack_traces.walk(event.stack_id)
+    except KeyError:
+        return
+
     syms = [
         b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
-        for addr in reversed(list(stack_traces.walk(event.stack_id)))
+        for addr in reversed(list(stack))
     ]
     sym_set = {sym.split()[0] for sym in syms}
 
-    if not sym_set & {"find_inode"}:
-        return;
+    # if not sym_set & {"find_inode"}:
+    #     return;
 
     ts = time.time() - start_ts
 
