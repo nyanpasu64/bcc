@@ -108,7 +108,7 @@ def print_event(cpu, data, size):
     ]
     sym_set = {sym.split()[0] for sym in syms}
 
-    if sym_set & {"drm_atomic_helper_page_flip", "drm_mode_cursor_ioctl", "drm_mode_cursor_common"}:
+    if not sym_set & {"find_inode"}:
         return;
 
     ts = time.time() - start_ts
