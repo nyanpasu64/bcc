@@ -32,10 +32,10 @@ parser.add_argument("-s", "--offset", action="store_true",
     help="show address offsets")
 parser.add_argument("-v", "--verbose", action="store_true",
     help="print more fields")
-parser.add_argument("function",
+parser.add_argument("function", nargs='+',
     help="kernel function name")
 args = parser.parse_args()
-function = args.function
+functions = args.function
 offset = args.offset
 verbose = args.verbose
 debug = 0
@@ -74,14 +74,17 @@ if debug:
 
 # initialize BPF
 b = BPF(text=bpf_text)
-b.attach_kprobe(event=function, fn_name="trace_stack")
+prev_open_kprobes = 0
+for function in functions:
+    b.attach_kprobe(event=function, fn_name="trace_stack")
 
-TASK_COMM_LEN = 16  # linux/sched.h
+    #TASK_COMM_LEN = 16  # linux/sched.h
 
-matched = b.num_open_kprobes()
-if matched == 0:
-    print("Function \"%s\" not found. Exiting." % function)
-    exit()
+    num_open_kprobes = b.num_open_kprobes()
+    if num_open_kprobes == prev_open_kprobes:
+        print("Function \"%s\" not found. Exiting." % function)
+        exit()
+    prev_open_kprobes = num_open_kprobes
 
 stack_traces = b.get_table("stack_traces")
 start_ts = time.time()
@@ -93,22 +96,55 @@ if verbose:
 else:
     print("%-18s %s" % ("TIME(s)", "FUNCTION"))
 
+prev_syms = []
 def print_event(cpu, data, size):
+    global prev_syms
+
     event = b["events"].event(data)
+
+    try:
+        stack = stack_traces.walk(event.stack_id)
+    except KeyError:
+        return
+
+    syms = [
+        b.ksym(addr, show_module=True, show_offset=offset).decode('utf-8', 'replace')
+        for addr in reversed(list(stack))
+    ]
+    sym_set = {sym.split()[0] for sym in syms}
+
+    # if not sym_set & {"find_inode"}:
+    #     return;
 
     ts = time.time() - start_ts
 
     if verbose:
-        print("%-18.9f %-12.12s %-6d %-3d %s" %
-              (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu, function))
+        print("%.9f %-12.12s %-6d %-3d" %
+              (ts, event.comm.decode('utf-8', 'replace'), event.pid, cpu))
     else:
-        print("%-18.9f %s" % (ts, function))
+        print("%.9f:" % (ts,))
 
-    for addr in stack_traces.walk(event.stack_id):
-        sym = b.ksym(addr, show_offset=offset).decode('utf-8', 'replace')
-        print("\t%s" % sym)
+    for ((i, sym), prev_sym) in zip(enumerate(syms), prev_syms):
+        if sym != prev_sym:
+            last_match = i - 1
+            break
+    else:
+        last_match = min(len(syms), len(prev_syms)) - 1
+    begin_print = max(0, last_match)
+
+    for i, sym in enumerate(syms[begin_print:], begin_print):
+        if i == last_match:
+            if i > 0:
+                indent = " " * (i-1) + "("
+            else:
+                indent = ""
+            print(f"\x1B[3m{indent}{i}) {sym}\x1B[0m")
+        else:
+            indent = " " * i
+            print(f"{indent}{i}: {sym}")
 
     print()
+    prev_syms = syms
 
 b["events"].open_perf_buffer(print_event)
 while 1:
